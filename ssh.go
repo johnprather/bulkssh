@@ -18,22 +18,22 @@ func sshAgent() ssh.AuthMethod {
 	return nil
 }
 
-func newSSHClientConfig(user *string, pass *string, agent *bool) *ssh.ClientConfig {
+func newSSHClientConfig(req *Request) *ssh.ClientConfig {
 	sshConfig := &ssh.ClientConfig{
-		User: *user,
+		User: req.User,
 		Auth: []ssh.AuthMethod{},
 	}
-	if agent != nil && *agent {
+	if req.Agent {
 		sshConfig.Auth = append(sshConfig.Auth, sshAgent())
 	}
-	if pass != nil {
-		sshConfig.Auth = append(sshConfig.Auth, ssh.Password(*pass))
+	if len(req.Password) > 0 {
+		sshConfig.Auth = append(sshConfig.Auth, ssh.Password(req.Password))
 	}
 	return sshConfig
 }
 
 func sshInit(req *Request) (*ssh.Client, error) {
-	sshConfig := newSSHClientConfig(req.User, req.Password, req.Agent)
+	sshConfig := newSSHClientConfig(req)
 	hostPort := fmt.Sprintf("%s:%d", req.Hostname, req.Port)
 	var err error
 	var conn net.Conn

@@ -4,9 +4,9 @@ package bulkssh
 type Request struct {
 	Hostname       string
 	Port           int
-	User           *string
-	Password       *string
-	Agent          *bool
+	User           string
+	Password       string
+	Agent          bool
 	Commands       []*Command
 	Error          error
 	ConnectTimeout int
@@ -25,7 +25,7 @@ func (r *Request) AddCommand(command string) {
 // added before it can be submitted
 func NewRequest(user string, host string, port int) *Request {
 	req := &Request{}
-	req.User = &user
+	req.User = user
 	req.Hostname = host
 	req.Port = port
 	req.Commands = make([]*Command, 0)
