@@ -2,13 +2,15 @@ package bulkssh
 
 // Request object for sending to Runner.InCh
 type Request struct {
-	Hostname string
-	Port     int
-	User     *string
-	Password *string
-	Agent    *bool
-	Commands []*Command
-	Error    error
+	Hostname       string
+	Port           int
+	User           *string
+	Password       *string
+	Agent          *bool
+	Commands       []*Command
+	Error          error
+	ConnectTimeout int
+	CommandTimeout int
 }
 
 // AddCommand - use to append commands to the request
@@ -27,5 +29,7 @@ func NewRequest(user string, host string, port int) *Request {
 	req.Hostname = host
 	req.Port = port
 	req.Commands = make([]*Command, 0)
+	req.ConnectTimeout = 10
+	req.CommandTimeout = 0
 	return req
 }

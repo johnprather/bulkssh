@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
@@ -35,14 +36,25 @@ func sshInit(req *Request) (*ssh.Client, error) {
 	sshConfig := newSSHClientConfig(req.User, req.Password, req.Agent)
 	hostPort := fmt.Sprintf("%s:%d", req.Hostname, req.Port)
 	var err error
-	connection, err := ssh.Dial("tcp", hostPort, sshConfig)
+	var conn net.Conn
+	if req.ConnectTimeout > 0 {
+		conn, err = net.DialTimeout("tcp", hostPort,
+			time.Duration(req.ConnectTimeout)*time.Second)
+	} else {
+		conn, err = net.Dial("tcp", hostPort)
+	}
 	if err != nil {
 		return nil, err
 	}
-	return connection, nil
+	connection, chans, reqs, err := ssh.NewClientConn(conn, hostPort, sshConfig)
+	//connection, err := ssh.Dial("tcp", hostPort, sshConfig)
+	if err != nil {
+		return nil, err
+	}
+	return ssh.NewClient(connection, chans, reqs), nil
 }
 
-func sshRun(connection *ssh.Client, command *Command) (*string, error) {
+func sshRun(connection *ssh.Client, command *Command, timeout int) (*string, error) {
 	session, err := connection.NewSession()
 	if err != nil {
 		return nil, err
@@ -55,14 +67,31 @@ func sshRun(connection *ssh.Client, command *Command) (*string, error) {
 		ssh.TTY_OP_ISPEED: 14400,
 		ssh.TTY_OP_OSPEED: 14400,
 	}
-	if err := session.RequestPty("xterm", 80, 40, modes); err != nil {
+	if err = session.RequestPty("xterm", 80, 40, modes); err != nil {
 		return nil, err
 	}
+
+	resStr := make(chan bool)
 	var stdoutBuf bytes.Buffer
 	session.Stdout = &stdoutBuf
-	session.Run(command.Command)
-	someout := stdoutBuf.String()
-	return &someout, nil
+	go func() {
+		session.Run(command.Command)
+		resStr <- true
+	}()
+	for {
+		select {
+		case b := <-resStr:
+			if b {
+				someout := stdoutBuf.String()
+				return &someout, nil
+			}
+		case <-time.After(time.Duration(timeout) * time.Second):
+			if timeout > 0 {
+				err = fmt.Errorf("Command timed out after %d seconds", timeout)
+				return nil, err
+			}
+		}
+	}
 }
 
 func sshDisconnect(connection *ssh.Client) {

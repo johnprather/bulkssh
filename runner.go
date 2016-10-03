@@ -40,9 +40,11 @@ func (r *Runner) handleRequest(req *Request) {
 	} else {
 		defer sshDisconnect(connection)
 		for _, cmd := range req.Commands {
-			output, err := sshRun(connection, cmd)
+			output, err := sshRun(connection, cmd, req.CommandTimeout)
 			cmd.Error = err
-			cmd.Output = *output
+			if output != nil {
+				cmd.Output = *output
+			}
 		}
 	}
 
