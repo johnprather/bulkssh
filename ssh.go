@@ -48,6 +48,7 @@ func sshRun(connection *ssh.Client, command *Command) (*string, error) {
 		return nil, err
 	}
 	defer session.Close()
+
 	//fmt.Printf("Established session with %s\n", m.hostname)
 	modes := ssh.TerminalModes{
 		ssh.ECHO:          0,
@@ -62,4 +63,9 @@ func sshRun(connection *ssh.Client, command *Command) (*string, error) {
 	session.Run(command.Command)
 	someout := stdoutBuf.String()
 	return &someout, nil
+}
+
+func sshDisconnect(connection *ssh.Client) {
+	connection.Close()
+	connection.Conn.Close()
 }

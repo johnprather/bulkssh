@@ -38,11 +38,13 @@ func (r *Runner) handleRequest(req *Request) {
 	if err != nil {
 		req.Error = err
 	} else {
+		defer sshDisconnect(connection)
 		for _, cmd := range req.Commands {
 			output, err := sshRun(connection, cmd)
 			cmd.Error = err
 			cmd.Output = *output
 		}
 	}
+
 	r.OutCh <- req
 }
