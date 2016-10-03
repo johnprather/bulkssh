@@ -3,13 +3,13 @@ package bulkssh
 // Runner the main ssh runner object of the bulkssh package
 type Runner struct {
 	InCh  chan *Request
-	OutCh chan *Result
+	OutCh chan *Request
 }
 
 // NewRunner instantiates a Runner object
 func NewRunner(routines int) *Runner {
 	inch := make(chan *Request)
-	outch := make(chan *Result)
+	outch := make(chan *Request)
 	runner := &Runner{
 		inch,
 		outch,
@@ -34,21 +34,15 @@ func (r *Runner) requestListener() {
 }
 
 func (r *Runner) handleRequest(req *Request) {
-	result := &Result{}
-	result.Outputs = make(map[*Command]string)
-	result.CmdErrors = make(map[*Command]error)
-	result.Request = req
-	req.Result = result
-
-	connection, err := sshInit(req.Hostname, req.Port)
+	connection, err := sshInit(req)
 	if err != nil {
-		result.Error = err
+		req.Error = err
 	} else {
 		for _, cmd := range req.Commands {
 			output, err := sshRun(connection, cmd)
-			result.Outputs[cmd] = *output
-			result.CmdErrors[cmd] = err
+			cmd.Error = err
+			cmd.Output = *output
 		}
 	}
-	r.OutCh <- result
+	r.OutCh <- req
 }

@@ -17,19 +17,23 @@ func sshAgent() ssh.AuthMethod {
 	return nil
 }
 
-func newSSHClientConfig() *ssh.ClientConfig {
+func newSSHClientConfig(user *string, pass *string, agent *bool) *ssh.ClientConfig {
 	sshConfig := &ssh.ClientConfig{
-		User: "root",
-		Auth: []ssh.AuthMethod{
-			sshAgent(),
-		},
+		User: *user,
+		Auth: []ssh.AuthMethod{},
+	}
+	if agent != nil && *agent {
+		sshConfig.Auth = append(sshConfig.Auth, sshAgent())
+	}
+	if pass != nil {
+		sshConfig.Auth = append(sshConfig.Auth, ssh.Password(*pass))
 	}
 	return sshConfig
 }
 
-func sshInit(host string, port int) (*ssh.Client, error) {
-	sshConfig := newSSHClientConfig()
-	hostPort := fmt.Sprintf("%s:%d", host, port)
+func sshInit(req *Request) (*ssh.Client, error) {
+	sshConfig := newSSHClientConfig(req.User, req.Password, req.Agent)
+	hostPort := fmt.Sprintf("%s:%d", req.Hostname, req.Port)
 	var err error
 	connection, err := ssh.Dial("tcp", hostPort, sshConfig)
 	if err != nil {
@@ -43,6 +47,7 @@ func sshRun(connection *ssh.Client, command *Command) (*string, error) {
 	if err != nil {
 		return nil, err
 	}
+	defer session.Close()
 	//fmt.Printf("Established session with %s\n", m.hostname)
 	modes := ssh.TerminalModes{
 		ssh.ECHO:          0,
@@ -50,7 +55,6 @@ func sshRun(connection *ssh.Client, command *Command) (*string, error) {
 		ssh.TTY_OP_OSPEED: 14400,
 	}
 	if err := session.RequestPty("xterm", 80, 40, modes); err != nil {
-		session.Close()
 		return nil, err
 	}
 	var stdoutBuf bytes.Buffer
